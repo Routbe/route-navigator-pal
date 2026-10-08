@@ -198,10 +198,12 @@ export function createRoutAuth(request?: Request) {
       modelName: "neon_auth.account",
       accountLinking: {
         enabled: true,
-        // No trusted providers: a social account is only linked to an existing
-        // ROUT user when that provider reports the e-mail as verified.
+        // No trusted providers: at sign-in a social account is only merged into
+        // an existing ROUT user when the provider reports the e-mail verified.
         trustedProviders: [],
-        allowDifferentEmails: false,
+        // Explicit linking (signed-in member, Settings → Linked identities)
+        // may attach an account with a different e-mail.
+        allowDifferentEmails: true,
       },
     },
     verification: { modelName: "neon_auth.verification" },

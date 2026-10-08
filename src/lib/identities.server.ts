@@ -1,7 +1,8 @@
 import { sql } from "@/lib/neon";
 
 /**
- * Linked sign-in identities (Google / GitHub).
+ * Linked sign-in identities: fediverse rows in `public.user_identities` plus
+ * Better Auth provider accounts in `neon_auth.account` (ids prefixed `ba:`).
  *
  * Multiple accounts per provider are supported — a member can attach both a
  * personal and a work Google account. Unlinking is refused when it would leave
@@ -20,7 +21,7 @@ export type IdentityRow = {
 
 type Row = Record<string, unknown>;
 
-export async function listIdentities(userId: string): Promise<IdentityRow[]> {
+async function listFediverse(userId: string): Promise<IdentityRow[]> {
   const rows = (await sql`
     select id, provider, provider_account_id, email, display_name, avatar_url, created_at
       from public.user_identities
@@ -38,11 +39,74 @@ export async function listIdentities(userId: string): Promise<IdentityRow[]> {
   }));
 }
 
+/** Better Auth user id bridged onto this ROUT member (user_metadata.neon_auth_id). */
+async function betterAuthId(userId: string): Promise<string | null> {
+  const rows = (await sql`
+    select user_metadata->>'neon_auth_id' as ba from public.users where id = ${userId} limit 1
+  `) as Row[];
+  return (rows[0]?.["ba"] as string | null) ?? null;
+}
+
+type BaAccount = { id: string; providerId: string; accountId: string; createdAt: string };
+
+async function listBetterAuth(userId: string): Promise<BaAccount[]> {
+  const ba = await betterAuthId(userId);
+  if (!ba) return [];
+  try {
+    const rows = (await sql`
+      select id, "providerId", "accountId", "createdAt"
+        from neon_auth.account where "userId" = ${ba}
+    `) as Row[];
+    return rows.map((r) => ({
+      id: String(r["id"]),
+      providerId: String(r["providerId"]),
+      accountId: String(r["accountId"]),
+      createdAt: String(r["createdAt"]),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function listIdentities(userId: string): Promise<IdentityRow[]> {
+  const [fedi, ba] = await Promise.all([listFediverse(userId), listBetterAuth(userId)]);
+  const social = ba
+    .filter((a) => a.providerId !== "credential")
+    .map((a) => ({
+      id: `ba:${a.id}`,
+      provider: a.providerId,
+      providerAccountId: a.accountId,
+      email: null,
+      displayName: null,
+      avatarUrl: null,
+      createdAt: a.createdAt,
+    }));
+  return [...social, ...fedi];
+}
+
 export async function hasPassword(userId: string): Promise<boolean> {
   const rows = (await sql`
     select password_hash is not null as has_password from public.users where id = ${userId} limit 1
   `) as Row[];
-  return rows[0]?.["has_password"] === true;
+  if (rows[0]?.["has_password"] === true) return true;
+  return (await listBetterAuth(userId)).some((a) => a.providerId === "credential");
+}
+
+/** Links a fediverse identity to a member; refuses one that belongs to someone else. */
+export async function attachIdentity(input: {
+  userId: string;
+  provider: string;
+  providerAccountId: string;
+  displayName?: string | null;
+}): Promise<{ ok: true } | { ok: false; reason: "taken" }> {
+  const owner = (await sql`
+    select user_id from public.user_identities
+     where provider = ${input.provider} and provider_account_id = ${input.providerAccountId} limit 1
+  `) as Row[];
+  const current = owner[0]?.["user_id"] as string | undefined;
+  if (current && current !== input.userId) return { ok: false, reason: "taken" };
+  await linkIdentity(input);
+  return { ok: true };
 }
 
 /** Idempotent upsert used by the OAuth callback for sign-in and for linking. */
@@ -74,6 +138,12 @@ export async function unlinkIdentity(userId: string, identityId: string) {
   if (identities.length <= 1 && !(await hasPassword(userId))) {
     return { ok: false as const, reason: "last_method" as const };
   }
-  await sql`delete from public.user_identities where id = ${identityId} and user_id = ${userId}`;
+  if (identityId.startsWith("ba:")) {
+    const ba = await betterAuthId(userId);
+    if (!ba) return { ok: false as const, reason: "not_found" as const };
+    await sql`delete from neon_auth.account where id = ${identityId.slice(3)} and "userId" = ${ba}`;
+  } else {
+    await sql`delete from public.user_identities where id = ${identityId} and user_id = ${userId}`;
+  }
   return { ok: true as const };
 }
