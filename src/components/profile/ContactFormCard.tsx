@@ -2,7 +2,8 @@ import { useState, type CSSProperties, type FormEvent } from "react";
 import { Loader2, Mail } from "lucide-react";
 import { toast } from "sonner";
 
-import { Turnstile } from "@/components/Turnstile";
+import { Altcha } from "@/components/Altcha";
+import { takeProof } from "@/lib/altcha-client";
 import { submitLeadCapture } from "@/lib/lead-capture.functions";
 import { CONTACT_MESSAGE_MAX, type ContactFormConfig } from "@/lib/contact-form";
 
@@ -19,7 +20,6 @@ export function ContactFormCard({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -34,7 +34,7 @@ export function ContactFormCard({
           name: config.nameField ? name : null,
           email,
           message: config.messageField ? message : null,
-          turnstileToken: token,
+          altcha: await takeProof(),
         },
       });
       if (res.ok) {
@@ -96,7 +96,7 @@ export function ContactFormCard({
               aria-label="Bericht"
             />
           )}
-          <Turnstile onToken={setToken} />
+          <Altcha />
           <button
             type="submit"
             disabled={busy}

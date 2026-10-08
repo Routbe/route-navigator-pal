@@ -11,6 +11,33 @@ import { createFileRoute } from "@tanstack/react-router";
 /** POST endpoints where the provider id travels in the JSON body. */
 const SOCIAL_BODY_PATHS = new Set(["/sign-in/social", "/sign-in/oauth2"]);
 
+/** Endpoints that need a valid ALTCHA proof in the `x-altcha` header. */
+export const ALTCHA_PATHS = new Set([
+  "/sign-up/email",
+  "/sign-in/email",
+  "/sign-in/magic-link",
+  "/forget-password",
+  "/request-password-reset",
+]);
+
+async function checkAltcha(request: Request): Promise<Response | null> {
+  const { verifyAltcha, identityNeedsHardChallenge, throttleHashForEmail } = await import("@/lib/altcha.server");
+  let email: string | null = null;
+  try {
+    const body = (await request.clone().json()) as { email?: unknown };
+    email = typeof body.email === "string" ? body.email : null;
+  } catch {
+    /* no JSON body */
+  }
+  const requireHard = email ? await identityNeedsHardChallenge(throttleHashForEmail(email)) : false;
+  const result = await verifyAltcha(request.headers.get("x-altcha"), { requireHard });
+  if (result.ok) return null;
+  return Response.json(
+    { code: "altcha_invalid", message: "Botcontrole mislukt. Probeer het opnieuw." },
+    { status: 400, headers: { "cache-control": "no-store" } },
+  );
+}
+
 /** `/callback/<provider>` (built-in) or `/oauth2/callback/<provider>` (generic). */
 function providerFromPath(relativePath: string): string | null {
   const match = relativePath.match(/\/callback\/([a-z0-9-]+)$/);
@@ -76,6 +103,13 @@ export async function handleAuthRequest({ request }: { request: Request }) {
     const provider = (await providerFromBody(request, relativePath)) ?? providerFromPath(relativePath);
     if (provider && !isProviderConfigured(provider)) {
       return providerNotConfigured(provider, missingProviderKeys(provider));
+    }
+
+    // Self-hosted ALTCHA proof required before Better Auth runs: no user is
+    // created and no mail is sent without it. Social/OAuth stay open.
+    if (request.method === "POST" && ALTCHA_PATHS.has(relativePath)) {
+      const refusal = await checkAltcha(request);
+      if (refusal) return refusal;
     }
 
     const res = await createRoutAuth(request).handler(request);

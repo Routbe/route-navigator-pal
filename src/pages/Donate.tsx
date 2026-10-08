@@ -3,7 +3,8 @@ import { useParams, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, HeartHandshake, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Turnstile } from "@/components/Turnstile";
+import { Altcha } from "@/components/Altcha";
+import { takeProof } from "@/lib/altcha-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,7 +44,6 @@ export default function Donate() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [botToken, setBotToken] = useState<string | null>(null);
   const [paid, setPaid] = useState(false);
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export default function Donate() {
         supporterName: name.trim() || null,
         supporterEmail: email.trim() || null,
         origin: window.location.origin,
-        turnstileToken: botToken,
+        altcha: await takeProof(),
       },
     }).catch(() => null);
     setSubmitting(false);
@@ -232,7 +232,7 @@ export default function Donate() {
               />
             </div>
 
-            <Turnstile onToken={setBotToken} />
+            <Altcha />
 
             <Button
               onClick={() => void submit()}

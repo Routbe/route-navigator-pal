@@ -258,7 +258,12 @@ export default function AuthNeon({ initialMode = "magic" }: { initialMode?: Mode
     setLoading(true);
     const address = email.trim().toLowerCase();
     try {
-      const result = await authClient.signIn.magicLink({ email: address, callbackURL, errorCallbackURL });
+      const result = await authClient.signIn.magicLink({
+        email: address,
+        callbackURL,
+        errorCallbackURL,
+        fetchOptions: { headers: { "x-altcha": await takeProof(address) } },
+      });
       const error = (result as { error?: { message?: string; code?: string } } | undefined)?.error;
       if (error) {
         toast.error(
@@ -285,6 +290,7 @@ export default function AuthNeon({ initialMode = "magic" }: { initialMode?: Mode
         email: email.trim().toLowerCase(),
         password,
         callbackURL,
+        fetchOptions: { headers: { "x-altcha": await takeProof(email.trim().toLowerCase()) } },
       });
       const error = (result as { error?: { message?: string } } | undefined)?.error;
       if (error) {
@@ -315,6 +321,7 @@ export default function AuthNeon({ initialMode = "magic" }: { initialMode?: Mode
         password,
         name: address.split("@")[0] ?? address,
         callbackURL,
+        fetchOptions: { headers: { "x-altcha": await takeProof(address) } },
       });
       const error = (result as { error?: { message?: string } } | undefined)?.error;
       if (error) {

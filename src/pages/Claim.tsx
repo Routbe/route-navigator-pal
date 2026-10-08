@@ -10,7 +10,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { checkHandleAvailability, suggestHandlesFromEmailAddress } from "@/lib/bootstrap.functions";
 import { claimHandle, getMyHandle, getVerifiedHandleOptions } from "@/lib/claim.functions";
-import { Turnstile } from "@/components/Turnstile";
+import { Altcha } from "@/components/Altcha";
+import { takeProof } from "@/lib/altcha-client";
 import { digitCount, FREE_HANDLE_MIN_DIGITS, handleLengthMessage } from "@/lib/handle-rules";
 import { hasValidDigitSuffix } from "@/lib/handle-suggestions";
 import { HandleOptionPicker, type HandleOption } from "@/components/HandleOptionPicker";
@@ -31,7 +32,6 @@ export default function Claim() {
   const [handle, setHandle] = useState("");
   const [state, setState] = useState<State>({ checking: false, ok: null });
   const [claiming, setClaiming] = useState(false);
-  const [botToken, setBotToken] = useState<string | null>(null);
   const [current, setCurrent] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
   const [options, setOptions] = useState<HandleOption[]>([]);
@@ -188,7 +188,7 @@ export default function Claim() {
     }
     setClaiming(true);
     try {
-      const res = await claimHandle({ data: { handle, turnstileToken: botToken } });
+      const res = await claimHandle({ data: { handle, altcha: await takeProof() } });
       if (!res.ok) {
         setState({ checking: false, ok: false, reason: res.reason });
         notifyError(res.reason ?? t("claim.claimFailed"), { key: "claim:submit" });
@@ -364,7 +364,7 @@ export default function Claim() {
               </div>
             ) : null}
 
-            <Turnstile onToken={setBotToken} />
+            <Altcha />
 
             <Button
               type="submit"
