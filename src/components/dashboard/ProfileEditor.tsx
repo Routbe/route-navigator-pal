@@ -1623,6 +1623,26 @@ export function ProfileEditor({ variant = "verified" }: { variant?: ProfileVaria
       {/* Low, compact mobile bar: subtle autosave status + primary live-preview action.
           Desktop already shows the pinned preview aside, so this bar is mobile-only. */}
       {showSaveBar && (
+        <div
+          aria-live="polite"
+          className="fixed right-4 top-4 z-40 hidden items-center gap-1.5 rounded-full border border-border bg-background/80 px-3 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur lg:flex"
+        >
+          {saveError && !saving ? (
+            <button type="button" onClick={() => void save(false)} className="text-destructive underline">
+              Niet opgeslagen – opnieuw proberen
+            </button>
+          ) : saving || dirty ? (
+            <>
+              <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> Opslaan…
+            </>
+          ) : savedAt ? (
+            <>
+              <Check className="h-3 w-3 text-primary" aria-hidden /> Opgeslagen
+            </>
+          ) : null}
+        </div>
+      )}
+      {showSaveBar && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/70 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur-lg lg:hidden">
           <div className="mx-auto flex max-w-3xl items-center gap-2">
             <p
