@@ -4,12 +4,15 @@ const state = { fedi: [] as Record<string, unknown>[], password: false, ba: [] a
 const deleted: string[] = [];
 vi.mock("@/lib/neon", () => ({
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => {
-    const q = strings.join("?");
+    const q = strings.join("?").trim();
+    if (q.startsWith("delete")) {
+      deleted.push(String(values[0]));
+      return Promise.resolve([]);
+    }
     if (q.includes("from public.user_identities")) return Promise.resolve(state.fedi);
     if (q.includes("has_password")) return Promise.resolve([{ has_password: state.password }]);
     if (q.includes("neon_auth_id")) return Promise.resolve([{ ba: "ba-user" }]);
     if (q.includes("from neon_auth.account")) return Promise.resolve(state.ba);
-    if (q.startsWith("delete")) deleted.push(String(values[0]));
     return Promise.resolve([]);
   },
 }));
