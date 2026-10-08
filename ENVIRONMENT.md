@@ -61,8 +61,7 @@ Alternatieve namen worden ook herkend (terugval): `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_
 
 | Key | Wat |
 |---|---|
-| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile (server) |
-| `VITE_TURNSTILE_SITE_KEY` | Turnstile (publiek, browser) |
+| `ALTCHA_HMAC_KEY` | Eigen botcontrole (ALTCHA, server). Optioneel: ontbreekt hij, dan wordt een sleutel afgeleid van `BETTER_AUTH_SECRET`. |
 | `ADMIN_BOOTSTRAP_TOKEN` | Eenmalige token om de eerste beheerder aan te maken |
 | `LOVABLE_CRON_SECRET` | Beveiligt cron-aanroepen |
 | `BOOKING_TOKEN_SECRET` | Boekingslinks |

@@ -33,3 +33,4 @@
 - After sign-in, `/auth/continue` applies a tour draft only to new accounts via `applyTourDraftToUser` (`tour-draft-apply.server.ts`); a taken handle falls back to `/onboarding`. Why: existing members must never be overwritten.
 
 - Page share images are drawn in code (`src/lib/page-og.server.ts`) from the single logo source `src/lib/brand/logo.ts`, one per page per locale at `/brand/og/<page>-<locale>.png`, cached in the internal bucket under a version prefix; never AI-generated, never rotated. Why: brand fidelity and crawler-cache stability.
+- Bot checks run only through the self-hosted ALTCHA proof-of-work (`altcha.server.ts`, single-use via `altcha_used` db/54); `api_/auth/$.ts` refuses email sign-up/sign-in/magic-link/password-reset with `altcha_invalid` (400) before Better Auth runs. Why: no third-party bot service (Cloudflare/Google) and no tracking.

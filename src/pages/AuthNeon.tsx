@@ -29,6 +29,8 @@ import { getEnabledProviders } from "@/lib/auth-providers.functions";
 import { BLUESKY_SUFFIXES, normalizeBlueskyHandle, withBlueskySuffix } from "@/lib/bluesky-handle";
 import { filterMastodonServers } from "@/lib/mastodon-servers";
 import { normalizeInstance } from "@/lib/mastodon-instance";
+import { Altcha } from "@/components/Altcha";
+import { takeProof } from "@/lib/altcha-client";
 
 /** Official multi-colour Google "G" — required by Google Identity branding. */
 function GoogleColorMark({ className }: { className?: string }) {
@@ -359,6 +361,7 @@ export default function AuthNeon({ initialMode = "magic" }: { initialMode?: Mode
           {emailError}
         </p>
       )}
+      <Altcha className="mt-1" />
     </div>
   );
 
