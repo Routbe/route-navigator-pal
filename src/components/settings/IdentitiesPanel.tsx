@@ -1,17 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
-import { Github, Loader2, Mail, Plus } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
+import { authClient } from "@/lib/auth-client";
 import { getMyIdentities, unlinkMyIdentity } from "@/lib/identities.functions";
 import type { IdentityRow } from "@/lib/identities.server";
+import { AUTH_PROVIDERS, FediverseDialog, ProviderMark, type AuthProvider } from "@/components/auth/ProviderKit";
 
-/** Tab 3 — link and unlink Google / GitHub sign-in identities. */
+const RETURN_PATH = "/settings?tab=identities";
+
+/** Tab 3 — link and manage every external identity from one list. */
 export function IdentitiesPanel() {
   const { t } = useI18n();
   const [identities, setIdentities] = useState<IdentityRow[]>([]);
   const [hasPassword, setHasPassword] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [fediverse, setFediverse] = useState<"bluesky" | "mastodon" | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -19,7 +25,7 @@ export function IdentitiesPanel() {
       setIdentities(result.identities);
       setHasPassword(result.hasPassword);
     } catch {
-      /* the panel simply shows the empty state */
+      /* the panel simply shows every provider as not connected */
     } finally {
       setLoading(false);
     }
@@ -27,11 +33,52 @@ export function IdentitiesPanel() {
 
   useEffect(() => {
     void load();
+    const params = new URLSearchParams(window.location.search);
+    const linked = params.get("linked");
+    if (linked) toast.success(`${AUTH_PROVIDERS.find((p) => p.id === linked)?.label ?? linked} is gekoppeld.`);
+    if (params.get("link_error") === "taken") toast.error("Dit account is al gekoppeld aan een ander ROUT-lid.");
+    const error = params.get("error");
+    if (error) toast.error("Koppelen is niet gelukt. Probeer het opnieuw.");
+    if (linked || params.get("link_error") || error) {
+      params.delete("linked");
+      params.delete("link_error");
+      params.delete("error");
+      const qs = params.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+    }
   }, [load]);
 
-  const link = (provider: "google" | "github") => {
-    const next = encodeURIComponent("/settings?tab=identities");
-    window.location.href = `/api/auth/${provider}?link=1&next=${next}`;
+  const connect = async (provider: AuthProvider) => {
+    if (provider.kind === "bluesky" || provider.kind === "mastodon") {
+      setFediverse(provider.kind);
+      return;
+    }
+    setBusy(provider.id);
+    try {
+      const callbackURL = `${RETURN_PATH}&linked=${provider.id}`;
+      const errorCallbackURL = RETURN_PATH;
+      const client = authClient as unknown as {
+        linkSocial: (o: object) => Promise<{ data?: { url?: string }; error?: { message?: string; status?: number } }>;
+        oauth2: { link: (o: object) => Promise<{ data?: { url?: string }; error?: { message?: string; status?: number } }> };
+      };
+      const result =
+        provider.kind === "social"
+          ? await client.linkSocial({ provider: provider.id, callbackURL, errorCallbackURL })
+          : await client.oauth2.link({ providerId: provider.id, callbackURL, errorCallbackURL });
+      if (result?.error) {
+        toast.error(
+          result.error.status === 400 || result.error.status === 404
+            ? `${provider.label} is nog niet actief.`
+            : result.error.message || "Koppelen is niet gelukt.",
+        );
+        return;
+      }
+      if (result?.data?.url) window.location.href = result.data.url;
+    } catch {
+      toast.error("Koppelen is niet gelukt.");
+    } finally {
+      setBusy(null);
+    }
   };
 
   const unlink = async (identityId: string) => {
@@ -44,57 +91,51 @@ export function IdentitiesPanel() {
     void load();
   };
 
+  const onlyMethod = identities.length <= 1 && !hasPassword;
+
   return (
     <section className="space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-5">
       <div>
         <h2 className="text-lg font-medium">{t("oauth.title")}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t("oauth.body")}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Koppel je accounts bij Google, GitHub, GitLab, Mastodon, Bluesky, Keycloak en Infomaniak. Met elk gekoppeld account kun je inloggen.
+        </p>
       </div>
 
       {loading ? (
         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-      ) : identities.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("oauth.none")}</p>
       ) : (
         <ul className="divide-y divide-border/60 rounded-xl border border-border">
-          {identities.map((identity) => (
-            <li key={identity.id} className="flex items-center gap-3 p-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-border/60 text-muted-foreground">
-                {identity.provider === "github" ? (
-                  <Github className="h-4 w-4" aria-hidden />
-                ) : (
-                  <Mail className="h-4 w-4" aria-hidden />
-                )}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm capitalize text-foreground">
-                  {identity.provider}
-                </span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {identity.email ?? identity.displayName ?? identity.providerAccountId}
-                </span>
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={identities.length <= 1 && !hasPassword}
-                onClick={() => unlink(identity.id)}
-              >
-                {t("oauth.unlink")}
-              </Button>
-            </li>
-          ))}
+          {AUTH_PROVIDERS.map((provider) => {
+            const linked = identities.filter((i) => i.provider === provider.id);
+            return (
+              <li key={provider.id} className="flex flex-col gap-2 p-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-border/60">
+                    <ProviderMark id={provider.id} className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1 text-sm text-foreground">{provider.label}</span>
+                  <Button variant="outline" size="sm" disabled={busy === provider.id} onClick={() => connect(provider)}>
+                    {busy === provider.id ? <Loader2 className="h-4 w-4 animate-spin" /> : linked.length ? "Nog een koppelen" : "Koppelen"}
+                  </Button>
+                </div>
+                {linked.map((identity) => (
+                  <div key={identity.id} className="ml-11 flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                      Gekoppeld als {identity.displayName ?? identity.email ?? identity.providerAccountId}
+                    </span>
+                    <Button variant="ghost" size="sm" disabled={onlyMethod} onClick={() => unlink(identity.id)}>
+                      {t("oauth.unlink")}
+                    </Button>
+                  </div>
+                ))}
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" className="gap-1.5" onClick={() => link("google")}>
-          <Plus className="h-4 w-4" /> {t("oauth.link_google")}
-        </Button>
-        <Button variant="outline" className="gap-1.5" onClick={() => link("github")}>
-          <Github className="h-4 w-4" /> {t("oauth.link_github")}
-        </Button>
-      </div>
+      <FediverseDialog provider={fediverse} onClose={() => setFediverse(null)} link next={RETURN_PATH} />
     </section>
   );
 }

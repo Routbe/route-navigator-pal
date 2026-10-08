@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { InfomaniakMark } from "@/components/InfomaniakMark";
 import { Link, useNavigate } from "@/lib/router-compat";
 import { toast } from "sonner";
 import { ArrowLeft, KeyRound, Loader2, Mail, MailCheck, ShieldCheck } from "lucide-react";
@@ -24,65 +23,10 @@ const AUTH_ERROR_TEXT: Record<string, string> = {
   link_expired: "Deze inloglink is verlopen of al gebruikt. Vraag een nieuwe aan.",
   access_denied: "Je hebt de toegang geweigerd.",
 };
-import { BRAND_ICONS } from "@/utils/brandIcons";
 import { getEnabledProviders } from "@/lib/auth-providers.functions";
-import { BLUESKY_SUFFIXES, normalizeBlueskyHandle, withBlueskySuffix } from "@/lib/bluesky-handle";
-import { filterMastodonServers } from "@/lib/mastodon-servers";
-import { normalizeInstance } from "@/lib/mastodon-instance";
 import { Altcha } from "@/components/Altcha";
+import { AUTH_PROVIDERS, KEYED_PROVIDERS, FediverseDialog, ProviderMark } from "@/components/auth/ProviderKit";
 import { takeProof } from "@/lib/altcha-client";
-
-/** Official multi-colour Google "G" — required by Google Identity branding. */
-function GoogleColorMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden>
-      <path
-        fill="#4285F4"
-        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 24c3.24 0 6-1.08 8-2.93l-3.88-3.05c-1.08.72-2.45 1.16-4.12 1.16-3.17 0-5.85-2.14-6.81-5.02H1.18v3.15C3.15 21.23 7.27 24 12 24z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.19 14.16c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.45H1.18C.43 7.94 0 9.91 0 12s.43 4.06 1.18 5.55l4.01-3.39z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.99 1.19 15.24 0 12 0 7.27 0 3.15 2.77 1.18 6.45l4.01 3.39c.96-2.88 3.64-5.09 6.81-5.09z"
-      />
-    </svg>
-  );
-}
-
-/**
- * Provider-tegels. Elke tegel start een Neon Auth OAuth-flow
- * (`authClient.signIn.social`) met het officiële merklogo in de merkkleur.
- */
-const TILES: { id: string; label: string; provider: string; mark: string; color: string }[] = [
-  {
-    id: "google",
-    label: "Google",
-    provider: "google",
-    mark: BRAND_ICONS.google!.path,
-    color: BRAND_ICONS.google!.color,
-  },
-  {
-    id: "mastodon",
-    label: "Mastodon / Fediverse",
-    provider: "mastodon",
-    mark: BRAND_ICONS.mastodon!.path,
-    color: BRAND_ICONS.mastodon!.color,
-  },
-  {
-    id: "bluesky",
-    label: "Bluesky",
-    provider: "bluesky",
-    mark: BRAND_ICONS.bluesky!.path,
-    color: BRAND_ICONS.bluesky!.color,
-  },
-];
 
 /** Providers die via Better Auth's generic OAuth/OIDC-plugin lopen. */
 const GENERIC_OAUTH = new Set(["oidc", "infomaniak"]);
@@ -117,24 +61,8 @@ export default function AuthNeon({ initialMode = "magic" }: { initialMode?: Mode
   const [mode, setMode] = useState<Mode>(initialMode);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [blueskyOpen, setBlueskyOpen] = useState(false);
-  const [blueskyHandle, setBlueskyHandle] = useState("");
-  const [mastodonOpen, setMastodonOpen] = useState(false);
-  const [mastodonInstance, setMastodonInstance] = useState("");
+  const [fediverse, setFediverse] = useState<"bluesky" | "mastodon" | null>(null);
   const redirected = useRef(false);
-  const [remoteServers, setRemoteServers] = useState<string[]>([]);
-  useEffect(() => {
-    if (!mastodonOpen) return;
-    const q = mastodonInstance.trim();
-    const timer = setTimeout(() => {
-      fetch(`/api/public/mastodon/servers?q=${encodeURIComponent(q)}`)
-        .then((r) => (r.ok ? r.json() : { servers: [] }))
-        .then((b: { servers?: string[] }) => setRemoteServers(b.servers ?? []))
-        .catch(() => setRemoteServers([]));
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [mastodonOpen, mastodonInstance]);
-  const mastodonSuggestions = filterMastodonServers(mastodonInstance, remoteServers);
   const [enabled, setEnabled] = useState<string[] | null>(null);
 
   useEffect(() => {
@@ -151,12 +79,12 @@ export default function AuthNeon({ initialMode = "magic" }: { initialMode?: Mode
       );
   }, []);
 
-  const KEYED = new Set(["google", "github", "gitlab", "apple", "oidc", "infomaniak"]);
+
   // Het volledige raster blijft altijd zichtbaar; een provider zonder sleutels
   // stuurt geen aanvraag maar toont een duidelijke melding (zie `oauth`).
-  const visibleTiles = TILES;
+  const visibleTiles = AUTH_PROVIDERS;
   const isInactive = (provider: string) =>
-    KEYED.has(provider) && enabled !== null && !enabled.includes(provider);
+    KEYED_PROVIDERS.has(provider) && enabled !== null && !enabled.includes(provider);
 
   useEffect(() => {
     if (!user || redirected.current) return;
@@ -392,139 +320,24 @@ export default function AuthNeon({ initialMode = "magic" }: { initialMode?: Mode
                 key={tile.id}
                 type="button"
                 onClick={() => {
-                  if (tile.provider === "bluesky") {
-                    setMastodonOpen(false);
-                    setBlueskyOpen((open) => !open);
+                  if (tile.kind === "bluesky" || tile.kind === "mastodon") {
+                    setFediverse(tile.kind);
                     return;
                   }
-                  if (tile.provider === "mastodon") {
-                    setBlueskyOpen(false);
-                    setMastodonOpen((open) => !open);
-                    return;
-                  }
-                  void oauth(tile.provider);
+                  void oauth(tile.id);
                 }}
                 disabled={loading}
                 aria-label={`Verder met ${tile.label}`}
                 title={`Verder met ${tile.label}`}
                 className="group flex h-11 items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/60 p-2 transition-all hover:border-border hover:bg-muted/50 disabled:opacity-60"
               >
-                {tile.id === "google" ? (
-                  <GoogleColorMark className="h-[18px] w-[18px] shrink-0" />
-                ) : tile.id === "infomaniak" ? (
-                  <InfomaniakMark className="h-[18px] w-[18px] shrink-0" />
-                ) : (
-                  <svg
-                    className="h-[18px] w-[18px] shrink-0"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    style={{ color: tile.color }}
-                    aria-hidden
-                  >
-                    <path d={tile.mark} />
-                  </svg>
-                )}
+                <ProviderMark id={tile.id} />
                 <span className="sr-only">{`Verder met ${tile.label}`}</span>
               </button>
             ))}
           </div>
 
-          {blueskyOpen && (
-            <form
-              className="mt-2 flex items-center gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const handle = normalizeBlueskyHandle(blueskyHandle);
-                if (!handle) {
-                  toast.error("Geef je volledige Bluesky-naam op, bijvoorbeeld jona.bsky.social.");
-                  return;
-                }
-                setLoading(true);
-                window.location.href = `/api/public/bluesky/start?handle=${encodeURIComponent(handle)}&next=${encodeURIComponent("/dashboard")}`;
-              }}
-            >
-              <div className="flex-1 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={blueskyHandle}
-                    onChange={(e) => setBlueskyHandle(e.target.value)}
-                    placeholder="jona.bsky.social"
-                    aria-label="Bluesky-naam"
-                    autoComplete="username"
-                    className="h-10 rounded-lg"
-                  />
-                  <Button type="submit" className="h-10 rounded-lg" disabled={loading}>
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : "Verder"}
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {BLUESKY_SUFFIXES.map((suffix) => (
-                    <button
-                      key={suffix}
-                      type="button"
-                      onClick={() => setBlueskyHandle(withBlueskySuffix(blueskyHandle, suffix))}
-                      className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      .{suffix}
-                    </button>
-                  ))}
-                </div>
-                {blueskyHandle && !blueskyHandle.includes(".") && (
-                  <p className="text-[11px] text-muted-foreground">
-                    Wordt: <strong>{normalizeBlueskyHandle(blueskyHandle)}</strong>
-                  </p>
-                )}
-              </div>
-            </form>
-          )}
-
-          {mastodonOpen && (
-            <form
-              className="mt-2 flex items-center gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const instance = normalizeInstance(mastodonInstance);
-                if (!instance) {
-                  toast.error("Geef de server op waar je account staat, bijvoorbeeld mastodon.social.");
-                  return;
-                }
-                setLoading(true);
-                window.location.href = `/api/public/mastodon/start?instance=${encodeURIComponent(instance)}&next=${encodeURIComponent("/dashboard")}`;
-              }}
-            >
-              <div className="flex-1 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={mastodonInstance}
-                    onChange={(e) => setMastodonInstance(e.target.value)}
-                    placeholder="mastodon.social"
-                    aria-label="Fediverse-server"
-                    autoComplete="off"
-                    className="h-10 rounded-lg"
-                  />
-                  <Button type="submit" className="h-10 rounded-lg" disabled={loading}>
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : "Verder"}
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-1.5" role="listbox" aria-label="Voorgestelde servers">
-                  {mastodonSuggestions.map((host) => (
-                    <button
-                      key={host}
-                      type="button"
-                      role="option"
-                      aria-selected={mastodonInstance === host}
-                      onClick={() => setMastodonInstance(host)}
-                      className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      {host}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </form>
-          )}
-
-
+          <FediverseDialog provider={fediverse} onClose={() => setFediverse(null)} />
 
           <div className="my-4 flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
