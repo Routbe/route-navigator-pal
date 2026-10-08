@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { clearLinkIntent, maybeLinkToCurrentUser } from "@/lib/link-intent";
 
 const STATE_COOKIE = "rout_bsky_state";
 const PENDING_COOKIE = "rout_fedi_pending";
@@ -51,6 +52,9 @@ export const Route = createFileRoute("/api_/public/bluesky/callback")({
           if (state.state !== returnedState) throw new Error("Deze inlogpoging is niet geldig.");
 
           const result = await completeBlueskyLogin({ code, state, origin });
+
+          const linked = await maybeLinkToCurrentUser(request, "bluesky", result.did, result.handle);
+          if (linked) return redirectTo(linked, [clear, clearLinkIntent()]);
 
           const { sql } = await import("@/lib/neon");
           const rows = (await sql`

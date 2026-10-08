@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 const STATE_COOKIE = "rout_bsky_state";
+import { linkIntentCookie } from "@/lib/link-intent";
 
 /** Stap 1 van de Bluesky-login: stuur het lid door naar zijn eigen server. */
 export const Route = createFileRoute("/api_/public/bluesky/start")({
@@ -22,13 +23,10 @@ export const Route = createFileRoute("/api_/public/bluesky/start")({
           const { startBlueskyLogin, sealBlueskyState } = await import("@/lib/bluesky-auth.server");
           const { url: authorizeUrl, state } = await startBlueskyLogin({ handle, origin, next });
           const sealed = await sealBlueskyState(state);
-          return new Response(null, {
-            status: 302,
-            headers: {
-              location: authorizeUrl,
-              "set-cookie": `${STATE_COOKIE}=${encodeURIComponent(sealed)}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=600`,
-            },
-          });
+          const headers = new Headers({ location: authorizeUrl });
+          headers.append("set-cookie", `${STATE_COOKIE}=${encodeURIComponent(sealed)}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=600`);
+          headers.append("set-cookie", linkIntentCookie(url.searchParams.get("link") === "1"));
+          return new Response(null, { status: 302, headers });
         } catch (error) {
           const message = error instanceof Error ? error.message : "Bluesky-login mislukte.";
           return new Response(null, {

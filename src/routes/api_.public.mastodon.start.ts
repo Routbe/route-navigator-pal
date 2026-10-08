@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { linkIntentCookie } from "@/lib/link-intent";
 
 /**
  * Stap 1 van de Mastodon/Fediverse-login: ROUT registreert zich (indien nodig)
@@ -28,7 +29,9 @@ export const Route = createFileRoute("/api_/public/mastodon/start")({
             origin,
             next,
           });
-          return new Response(null, { status: 302, headers: { location: authorizeUrl } });
+          const headers = new Headers({ location: authorizeUrl });
+          headers.append("set-cookie", linkIntentCookie(url.searchParams.get("link") === "1"));
+          return new Response(null, { status: 302, headers });
         } catch (error) {
           const message =
             error instanceof Error ? error.message : "Aanmelden via Mastodon mislukte.";

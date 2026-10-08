@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { clearLinkIntent, maybeLinkToCurrentUser } from "@/lib/link-intent";
 
 /**
  * Stap 2 van de Mastodon-login. De instance stuurt het lid hier terug met een
@@ -28,6 +29,12 @@ export const Route = createFileRoute("/auth_/mastodon/callback")({
           const { completeMastodonCallback } = await import("@/lib/mastodon-auth.server");
           const { createAppSessionValue } = await import("@/lib/app-session.server");
           const result = await completeMastodonCallback({ code, state });
+          const linked = await maybeLinkToCurrentUser(request, "mastodon", result.handle, result.handle);
+          if (linked) {
+            const h = new Headers({ location: linked, "cache-control": "no-store" });
+            h.append("set-cookie", clearLinkIntent());
+            return new Response(null, { status: 303, headers: h });
+          }
           if (!result.userId) {
             const { signValue } = await import("@/lib/app-session.server");
             const { encodePending, FEDI_PENDING_COOKIE } = await import("@/lib/fediverse-otp.server");
