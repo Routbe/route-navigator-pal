@@ -1,0 +1,134 @@
+// Guarded auth endpoint: missing provider credentials fail fast with a readable
+// code instead of a generic 500 (see handleAuthRequest below).
+import { createFileRoute } from "@tanstack/react-router";
+
+/**
+ * ROUT's own auth endpoint (self-hosted Better Auth). Sign-up, sign-in,
+ * magic links, social OAuth callbacks (`/api/auth/callback/<provider>`) and
+ * sign-out all terminate here — no managed middleman.
+ */
+
+/** POST endpoints where the provider id travels in the JSON body. */
+const SOCIAL_BODY_PATHS = new Set(["/sign-in/social", "/sign-in/oauth2"]);
+
+/** `/callback/<provider>` (built-in) or `/oauth2/callback/<provider>` (generic). */
+function providerFromPath(relativePath: string): string | null {
+  const match = relativePath.match(/\/callback\/([a-z0-9-]+)$/);
+  return match?.[1] ?? null;
+}
+
+async function providerFromBody(request: Request, relativePath: string): Promise<string | null> {
+  if (request.method !== "POST" || !SOCIAL_BODY_PATHS.has(relativePath)) return null;
+  try {
+    const body = (await request.clone().json()) as { provider?: unknown; providerId?: unknown };
+    const id = body.provider ?? body.providerId;
+    return typeof id === "string" && id ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+const PROVIDER_NOT_CONFIGURED_MESSAGE =
+  "Deze inlogmethode is nog niet ingesteld op de server. Gebruik e-mail of een andere inlogmethode.";
+
+function providerNotConfigured(provider: string, missing: string[]) {
+  console.warn(
+    `[auth] provider "${provider}" has no credentials configured (missing: ${missing.join(", ") || "unknown"}) — refusing with provider_not_configured`,
+  );
+  return Response.json(
+    { code: "provider_not_configured", provider, message: PROVIDER_NOT_CONFIGURED_MESSAGE },
+    { status: 400, headers: { "cache-control": "no-store" } },
+  );
+}
+
+/** Non-secret request facts for diagnosing cookie / state / host problems. */
+function traceContext(request: Request, relativePath?: string) {
+  const url = new URL(request.url);
+  const cookieNames = (request.headers.get("cookie") ?? "")
+    .split(";")
+    .map((c) => c.split("=")[0]?.trim())
+    .filter((n): n is string => Boolean(n) && /auth|state|session/i.test(n!));
+  return {
+    method: request.method,
+    path: relativePath ?? url.pathname,
+    hasCode: url.searchParams.has("code"),
+    hasState: url.searchParams.has("state"),
+    providerError: url.searchParams.get("error"),
+    host: request.headers.get("host"),
+    forwardedHost: request.headers.get("x-forwarded-host"),
+    forwardedProto: request.headers.get("x-forwarded-proto"),
+    betterAuthUrl: process.env["BETTER_AUTH_URL"] ?? process.env["NEXT_PUBLIC_APP_URL"] ?? null,
+    authCookies: cookieNames, // names only, never values
+  };
+}
+
+export async function handleAuthRequest({ request }: { request: Request }) {
+  try {
+    const { createRoutAuth, isProviderConfigured, missingProviderKeys } = await import("@/lib/better-auth.server");
+
+    // A provider without credentials must never reach Better Auth: it would
+    // throw and surface as a generic 500. Fail fast with a readable code so
+    // one unconfigured provider cannot break the handler or other methods.
+    const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
+    const relativePath = pathname.startsWith("/api/auth")
+      ? pathname.slice("/api/auth".length) || "/"
+      : pathname;
+    const provider = (await providerFromBody(request, relativePath)) ?? providerFromPath(relativePath);
+    if (provider && !isProviderConfigured(provider)) {
+      return providerNotConfigured(provider, missingProviderKeys(provider));
+    }
+
+    const res = await createRoutAuth(request).handler(request);
+    if (/callback/.test(relativePath)) {
+      // Better Auth reports state/cookie problems as a redirect with ?error=.
+      const loc = res.headers.get("location") ?? "";
+      const errParam = loc ? new URL(loc, request.url).searchParams.get("error") : null;
+      if (res.status >= 400 || errParam) {
+        console.error("[auth] OAuth callback rejected:", { status: res.status, error: errParam, ...traceContext(request, relativePath) });
+      }
+    }
+    return res;
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    console.error("[auth] handler failed:", {
+      message: raw,
+      name: err instanceof Error ? err.name : typeof err,
+      cause: err instanceof Error && err.cause ? String((err.cause as Error)?.message ?? err.cause) : undefined,
+      stack: err instanceof Error ? err.stack : undefined,
+      ...traceContext(request),
+    });
+    const code = /PROVIDER_NOT_FOUND|provider[^\n]*(not found|not configured|not enabled|unknown provider)/i.test(raw)
+      ? "provider_not_configured"
+      : /SECRET/.test(raw)
+        ? "missing_secret"
+        : /DATABASE_URL/.test(raw)
+          ? "missing_database"
+          : /websocket|ECONN|ENOTFOUND|ETIMEDOUT|connect|pool/i.test(raw)
+            ? "db_connect"
+            : /relation|column|does not exist/i.test(raw)
+              ? "db_error"
+              : "auth_error";
+    if (code === "provider_not_configured") {
+      console.warn("[auth] provider not configured (thrown by handler):", raw);
+    }
+    const message = {
+      missing_secret: "Inloggen is niet ingesteld: BETTER_AUTH_SECRET ontbreekt op de server.",
+      missing_database: "Inloggen is niet ingesteld: DATABASE_URL ontbreekt op de server.",
+      db_connect: "De database is niet bereikbaar vanaf de server. Probeer later opnieuw.",
+      db_error: "Inloggen faalt door een databaseprobleem (tabellen). Probeer later opnieuw.",
+      auth_error: "Inloggen faalt aan serverzijde. Probeer later opnieuw.",
+      provider_not_configured: PROVIDER_NOT_CONFIGURED_MESSAGE,
+    }[code];
+    const status = code === "provider_not_configured" ? 400 : 500;
+    return Response.json({ code, message }, { status, headers: { "cache-control": "no-store" } });
+  }
+}
+
+export const Route = createFileRoute("/api_/auth/$")({
+  server: {
+    handlers: {
+      GET: handleAuthRequest,
+      POST: handleAuthRequest,
+    },
+  },
+});

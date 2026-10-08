@@ -1,0 +1,12 @@
+{
+  "source": "github:Routbe/route-navigator-buddy-ea1f4430",
+  "capabilities": [
+    { "capability": "application code (TanStack Start, ~1000 files)", "source": "repo", "outcome": "migrate", "status": "in_progress", "next_action": "copy source, install deps, verify build" },
+    { "capability": "database schema (50+ SQL migrations, Postgres/Neon)", "source": "repo db/", "outcome": "migrate", "status": "pending", "next_action": "needs DATABASE_URL; Neon provider preserved until user decides on Lovable Cloud" },
+    { "capability": "records", "source": "none attached", "outcome": "migrate", "status": "pending", "next_action": "request CSV/JSON exports from Neon dashboard after preview" },
+    { "capability": "auth (better-auth: Google/GitHub/Apple/passkeys)", "source": "repo", "outcome": "preserve", "status": "pending", "next_action": "requires BETTER_AUTH_SECRET + provider keys via secure secret form" },
+    { "capability": "payments (Stripe + webhooks)", "source": "repo", "outcome": "preserve", "status": "pending", "next_action": "request Stripe keys before verification" },
+    { "capability": "public API routes, OAuth provider, cron endpoints", "source": "repo src/routes/api*", "outcome": "migrate", "status": "in_progress", "next_action": "ships with code copy" },
+    { "capability": "secrets/env vars (DATABASE_URL, BETTER_AUTH_SECRET, etc.)", "source": "ENVIRONMENT.md", "outcome": "migrate", "status": "pending", "next_action": "request via secure secret form before live verification" }
+  ]
+}
