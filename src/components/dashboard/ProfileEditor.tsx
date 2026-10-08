@@ -156,6 +156,10 @@ export function ProfileEditor({ variant = "verified" }: { variant?: ProfileVaria
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [retryIn, setRetryIn] = useState(0);
+  const editRev = useRef(0);
+  const failCount = useRef(0);
   const queryClient = useQueryClient();
   const router = useRouter();
   const [handle, setHandle] = useState("");
@@ -478,15 +482,29 @@ export function ProfileEditor({ variant = "verified" }: { variant?: ProfileVaria
       firstDraft.current = false;
       return;
     }
+    editRev.current += 1;
     setDirty(true);
   }, [draft, loading]);
 
+  // Opslaan één tegelijk; bij fout opnieuw proberen met oplopende pauze.
   useEffect(() => {
     if (!dirty || saving || !handleOk) return;
-    const id = setTimeout(() => void save(true), 500);
+    const wait = saveError ? Math.min(30000, 2000 * 2 ** (failCount.current - 1)) : 500;
+    const id = setTimeout(() => void save(true), wait);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty, draft, handleOk]);
+  }, [dirty, draft, handleOk, saving, saveError, retryIn]);
+
+  // Waarschuwen bij verlaten met niet-opgeslagen wijzigingen.
+  useEffect(() => {
+    if (!dirty) return;
+    const onLeave = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, [dirty]);
 
   const save = async (silent = false) => {
     if (!user) return;
@@ -495,7 +513,10 @@ export function ProfileEditor({ variant = "verified" }: { variant?: ProfileVaria
       return toast.error(handleProblem ?? `Choose a valid handle — ${handleRuleHint(handleCtx)}.`);
     }
     setSaving(true);
-    const result = await saveProfile({
+    const rev = editRev.current;
+    let result: Awaited<ReturnType<typeof saveProfile>>;
+    try {
+      result = await saveProfile({
       data: {
         username: normalized,
         displayName: displayName.trim() || null,
@@ -508,8 +529,17 @@ export function ProfileEditor({ variant = "verified" }: { variant?: ProfileVaria
         displayPrefs: prefs as unknown as never,
       },
     });
+    } catch (e) {
+      failCount.current += 1;
+      setSaveError(e instanceof Error ? e.message : "Netwerkfout");
+      setSaving(false);
+      setRetryIn((n) => n + 1);
+      return;
+    }
     setSaving(false);
     if (!result.ok) {
+      failCount.current += 1;
+      setSaveError(result.reason ?? "Opslaan mislukt");
       if (silent) return;
       if (result.reason === "handle_taken") return toast.error("That handle is already taken.");
       if (result.reason === "handle_reserved")
@@ -524,7 +554,10 @@ export function ProfileEditor({ variant = "verified" }: { variant?: ProfileVaria
     // meteen rendert zonder herlaad of serverherstart.
     void queryClient.invalidateQueries({ queryKey: ["public-profile", normalized] });
     void router.invalidate();
-    setDirty(false);
+    failCount.current = 0;
+    setSaveError(null);
+    // Alleen "opgeslagen" als er tijdens het opslaan niets meer veranderde.
+    if (editRev.current === rev) setDirty(false);
     setSavedAt(Date.now());
     if (!silent) toast.success("Studio saved");
   };
@@ -1590,13 +1623,41 @@ export function ProfileEditor({ variant = "verified" }: { variant?: ProfileVaria
       {/* Low, compact mobile bar: subtle autosave status + primary live-preview action.
           Desktop already shows the pinned preview aside, so this bar is mobile-only. */}
       {showSaveBar && (
+        <div
+          aria-live="polite"
+          className="fixed right-4 top-4 z-40 hidden items-center gap-1.5 rounded-full border border-border bg-background/80 px-3 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur lg:flex"
+        >
+          {saveError && !saving ? (
+            <button type="button" onClick={() => void save(false)} className="text-destructive underline">
+              Niet opgeslagen – opnieuw proberen
+            </button>
+          ) : saving || dirty ? (
+            <>
+              <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> Opslaan…
+            </>
+          ) : savedAt ? (
+            <>
+              <Check className="h-3 w-3 text-primary" aria-hidden /> Opgeslagen
+            </>
+          ) : null}
+        </div>
+      )}
+      {showSaveBar && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/70 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur-lg lg:hidden">
           <div className="mx-auto flex max-w-3xl items-center gap-2">
             <p
               aria-live="polite"
               className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-[11px] text-muted-foreground"
             >
-              {saving ? (
+              {saveError && !saving ? (
+                <button
+                  type="button"
+                  onClick={() => void save(false)}
+                  className="truncate text-left text-destructive underline"
+                >
+                  Niet opgeslagen – opnieuw proberen
+                </button>
+              ) : saving ? (
                 <>
                   <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden /> Opslaan…
                 </>
