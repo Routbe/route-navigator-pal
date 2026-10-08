@@ -29,6 +29,8 @@ import { getEnabledProviders } from "@/lib/auth-providers.functions";
 import { BLUESKY_SUFFIXES, normalizeBlueskyHandle, withBlueskySuffix } from "@/lib/bluesky-handle";
 import { filterMastodonServers } from "@/lib/mastodon-servers";
 import { normalizeInstance } from "@/lib/mastodon-instance";
+import { Altcha } from "@/components/Altcha";
+import { takeProof } from "@/lib/altcha-client";
 
 /** Official multi-colour Google "G" — required by Google Identity branding. */
 function GoogleColorMark({ className }: { className?: string }) {
@@ -258,7 +260,12 @@ export default function AuthNeon({ initialMode = "magic" }: { initialMode?: Mode
     setLoading(true);
     const address = email.trim().toLowerCase();
     try {
-      const result = await authClient.signIn.magicLink({ email: address, callbackURL, errorCallbackURL });
+      const result = await authClient.signIn.magicLink({
+        email: address,
+        callbackURL,
+        errorCallbackURL,
+        fetchOptions: { headers: { "x-altcha": await takeProof(address) } },
+      });
       const error = (result as { error?: { message?: string; code?: string } } | undefined)?.error;
       if (error) {
         toast.error(
@@ -285,6 +292,7 @@ export default function AuthNeon({ initialMode = "magic" }: { initialMode?: Mode
         email: email.trim().toLowerCase(),
         password,
         callbackURL,
+        fetchOptions: { headers: { "x-altcha": await takeProof(email.trim().toLowerCase()) } },
       });
       const error = (result as { error?: { message?: string } } | undefined)?.error;
       if (error) {
@@ -315,6 +323,7 @@ export default function AuthNeon({ initialMode = "magic" }: { initialMode?: Mode
         password,
         name: address.split("@")[0] ?? address,
         callbackURL,
+        fetchOptions: { headers: { "x-altcha": await takeProof(address) } },
       });
       const error = (result as { error?: { message?: string } } | undefined)?.error;
       if (error) {
@@ -352,6 +361,7 @@ export default function AuthNeon({ initialMode = "magic" }: { initialMode?: Mode
           {emailError}
         </p>
       )}
+      <Altcha className="mt-1" />
     </div>
   );
 

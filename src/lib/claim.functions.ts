@@ -29,14 +29,14 @@ export const claimHandle = createServerFn({ method: "POST" })
     z
       .object({
         handle: z.string().max(200),
-        turnstileToken: z.string().max(4000).optional().nullable(),
+        altcha: z.string().max(4000).optional().nullable(),
       })
       .parse(data),
   )
   .handler(async ({ data, context }) => {
     // Botbescherming: handles zijn schaars, dus reserveren vereist een mens.
-    const { assertHuman } = await import("./turnstile.server");
-    await assertHuman(data.turnstileToken ?? null);
+    const { assertHuman } = await import("./altcha.server");
+    await assertHuman(data.altcha ?? null);
     const { claimHandleFor } = await import("./claim.server");
     return claimHandleFor(context.userId, data.handle, context.db);
   });

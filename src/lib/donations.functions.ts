@@ -11,7 +11,7 @@ const startSchema = z.object({
   supporterName: z.string().trim().max(80).optional().nullable(),
   supporterEmail: z.string().trim().email().max(200).optional().nullable(),
   origin: z.string().url().max(300),
-  turnstileToken: z.string().max(4000).optional().nullable(),
+  altcha: z.string().max(4000).optional().nullable(),
 });
 
 export const getDonationTarget = createServerFn({ method: "GET" })
@@ -25,8 +25,8 @@ export const startDonationCheckout = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => startSchema.parse(input))
   .handler(async ({ data }) => {
     // Botbescherming vóór we een Stripe-sessie aanmaken.
-    const { assertHuman } = await import("./turnstile.server");
-    await assertHuman(data.turnstileToken ?? null);
+    const { assertHuman } = await import("./altcha.server");
+    await assertHuman(data.altcha ?? null);
     const { getRequest } = await import("@tanstack/react-start/server");
     const { trustedCheckoutOrigin } = await import("./verification.server");
     const { startDonation } = await import("./donations.server");

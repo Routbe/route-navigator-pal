@@ -105,6 +105,7 @@ import { Route as ApiPublicBlueskyCallbackRouteImport } from './routes/api_.publ
 import { Route as ApiPublicBlueskyClientMetadataDotjsonRouteImport } from './routes/api_.public.bluesky.client-metadata[.]json'
 import { Route as ApiPublicBlueskyStartRouteImport } from './routes/api_.public.bluesky.start'
 import { Route as ApiPublicCronCheckDnsRouteImport } from './routes/api_.public.cron.check-dns'
+import { Route as ApiPublicCronPurgeAltchaRouteImport } from './routes/api_.public.cron.purge-altcha'
 import { Route as ApiPublicCronPurgeSharedFilesRouteImport } from './routes/api_.public.cron.purge-shared-files'
 import { Route as ApiPublicCronScanTransfersRouteImport } from './routes/api_.public.cron.scan-transfers'
 import { Route as ApiPublicCronSecureshieldBillingRouteImport } from './routes/api_.public.cron.secureshield-billing'
@@ -626,6 +627,12 @@ const ApiPublicCronCheckDnsRoute = ApiPublicCronCheckDnsRouteImport.update({
   path: '/api/public/cron/check-dns',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronPurgeAltchaRoute =
+  ApiPublicCronPurgeAltchaRouteImport.update({
+    id: '/api_/public/cron/purge-altcha',
+    path: '/api/public/cron/purge-altcha',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronPurgeSharedFilesRoute =
   ApiPublicCronPurgeSharedFilesRouteImport.update({
     id: '/api_/public/cron/purge-shared-files',
@@ -854,6 +861,7 @@ export interface FileRoutesByFullPath {
   '/api/public/bluesky/client-metadata.json': typeof ApiPublicBlueskyClientMetadataDotjsonRoute
   '/api/public/bluesky/start': typeof ApiPublicBlueskyStartRoute
   '/api/public/cron/check-dns': typeof ApiPublicCronCheckDnsRoute
+  '/api/public/cron/purge-altcha': typeof ApiPublicCronPurgeAltchaRoute
   '/api/public/cron/purge-shared-files': typeof ApiPublicCronPurgeSharedFilesRoute
   '/api/public/cron/scan-transfers': typeof ApiPublicCronScanTransfersRoute
   '/api/public/cron/secureshield-billing': typeof ApiPublicCronSecureshieldBillingRoute
@@ -970,6 +978,7 @@ export interface FileRoutesByTo {
   '/api/public/bluesky/client-metadata.json': typeof ApiPublicBlueskyClientMetadataDotjsonRoute
   '/api/public/bluesky/start': typeof ApiPublicBlueskyStartRoute
   '/api/public/cron/check-dns': typeof ApiPublicCronCheckDnsRoute
+  '/api/public/cron/purge-altcha': typeof ApiPublicCronPurgeAltchaRoute
   '/api/public/cron/purge-shared-files': typeof ApiPublicCronPurgeSharedFilesRoute
   '/api/public/cron/scan-transfers': typeof ApiPublicCronScanTransfersRoute
   '/api/public/cron/secureshield-billing': typeof ApiPublicCronSecureshieldBillingRoute
@@ -1092,6 +1101,7 @@ export interface FileRoutesById {
   '/api_/public/bluesky/client-metadata.json': typeof ApiPublicBlueskyClientMetadataDotjsonRoute
   '/api_/public/bluesky/start': typeof ApiPublicBlueskyStartRoute
   '/api_/public/cron/check-dns': typeof ApiPublicCronCheckDnsRoute
+  '/api_/public/cron/purge-altcha': typeof ApiPublicCronPurgeAltchaRoute
   '/api_/public/cron/purge-shared-files': typeof ApiPublicCronPurgeSharedFilesRoute
   '/api_/public/cron/scan-transfers': typeof ApiPublicCronScanTransfersRoute
   '/api_/public/cron/secureshield-billing': typeof ApiPublicCronSecureshieldBillingRoute
@@ -1214,6 +1224,7 @@ export interface FileRouteTypes {
     | '/api/public/bluesky/client-metadata.json'
     | '/api/public/bluesky/start'
     | '/api/public/cron/check-dns'
+    | '/api/public/cron/purge-altcha'
     | '/api/public/cron/purge-shared-files'
     | '/api/public/cron/scan-transfers'
     | '/api/public/cron/secureshield-billing'
@@ -1330,6 +1341,7 @@ export interface FileRouteTypes {
     | '/api/public/bluesky/client-metadata.json'
     | '/api/public/bluesky/start'
     | '/api/public/cron/check-dns'
+    | '/api/public/cron/purge-altcha'
     | '/api/public/cron/purge-shared-files'
     | '/api/public/cron/scan-transfers'
     | '/api/public/cron/secureshield-billing'
@@ -1451,6 +1463,7 @@ export interface FileRouteTypes {
     | '/api_/public/bluesky/client-metadata.json'
     | '/api_/public/bluesky/start'
     | '/api_/public/cron/check-dns'
+    | '/api_/public/cron/purge-altcha'
     | '/api_/public/cron/purge-shared-files'
     | '/api_/public/cron/scan-transfers'
     | '/api_/public/cron/secureshield-billing'
@@ -1540,6 +1553,7 @@ export interface RootRouteChildren {
   ApiPublicBlueskyClientMetadataDotjsonRoute: typeof ApiPublicBlueskyClientMetadataDotjsonRoute
   ApiPublicBlueskyStartRoute: typeof ApiPublicBlueskyStartRoute
   ApiPublicCronCheckDnsRoute: typeof ApiPublicCronCheckDnsRoute
+  ApiPublicCronPurgeAltchaRoute: typeof ApiPublicCronPurgeAltchaRoute
   ApiPublicCronPurgeSharedFilesRoute: typeof ApiPublicCronPurgeSharedFilesRoute
   ApiPublicCronScanTransfersRoute: typeof ApiPublicCronScanTransfersRoute
   ApiPublicCronSecureshieldBillingRoute: typeof ApiPublicCronSecureshieldBillingRoute
@@ -2230,6 +2244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronCheckDnsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api_/public/cron/purge-altcha': {
+      id: '/api_/public/cron/purge-altcha'
+      path: '/api/public/cron/purge-altcha'
+      fullPath: '/api/public/cron/purge-altcha'
+      preLoaderRoute: typeof ApiPublicCronPurgeAltchaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api_/public/cron/purge-shared-files': {
       id: '/api_/public/cron/purge-shared-files'
       path: '/api/public/cron/purge-shared-files'
@@ -2654,6 +2675,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicBlueskyClientMetadataDotjsonRoute,
   ApiPublicBlueskyStartRoute: ApiPublicBlueskyStartRoute,
   ApiPublicCronCheckDnsRoute: ApiPublicCronCheckDnsRoute,
+  ApiPublicCronPurgeAltchaRoute: ApiPublicCronPurgeAltchaRoute,
   ApiPublicCronPurgeSharedFilesRoute: ApiPublicCronPurgeSharedFilesRoute,
   ApiPublicCronScanTransfersRoute: ApiPublicCronScanTransfersRoute,
   ApiPublicCronSecureshieldBillingRoute: ApiPublicCronSecureshieldBillingRoute,

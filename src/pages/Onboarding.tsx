@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Turnstile } from "@/components/Turnstile";
+import { Altcha } from "@/components/Altcha";
+import { takeProof } from "@/lib/altcha-client";
 import { SocialHandleInput } from "@/components/SocialHandleInput";
 import { normalizeSocialHandle } from "@/lib/social-handles";
 import { ProfileView } from "@/components/profile/ProfileView";
@@ -109,7 +110,6 @@ export default function Onboarding() {
   const [theme, setTheme] = useState("noir");
   const [typography, setTypography] = useState<Typography>("sans");
   const [socials, setSocials] = useState<Record<string, string>>({});
-  const [botToken, setBotToken] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
   const [tourPrefs, setTourPrefs] = useState<Partial<ProfileDisplayPrefs>>({});
@@ -242,7 +242,7 @@ export default function Onboarding() {
     if (!user) return;
     setSaving(true);
     try {
-      const claim = await claimHandle({ data: { handle: normalized, turnstileToken: botToken } });
+      const claim = await claimHandle({ data: { handle: normalized, altcha: await takeProof() } });
       if (!claim.ok) {
         notifyError(claim.reason ?? "Deze handle kon niet gereserveerd worden.");
         setStep(1);
@@ -280,7 +280,7 @@ export default function Onboarding() {
     } finally {
       setSaving(false);
     }
-  }, [user, normalized, botToken, displayName, bio, avatarUrl, theme, blocks, typography, tourPrefs, draftToken, nav]);
+  }, [user, normalized, displayName, bio, avatarUrl, theme, blocks, typography, tourPrefs, draftToken, nav]);
 
   return (
     <AppLayout
@@ -561,7 +561,7 @@ export default function Onboarding() {
                     ))}
                   </div>
 
-                  <Turnstile onToken={setBotToken} />
+                  <Altcha />
                 </div>
               ) : null}
 

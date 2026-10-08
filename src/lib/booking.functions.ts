@@ -14,7 +14,7 @@ const schema = z.object({
   preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   preferredTime: z.string().regex(/^\d{2}:\d{2}$/),
   guestMessage: z.string().trim().max(500).optional().nullable(),
-  turnstileToken: z.string().max(4000).optional().nullable(),
+  altcha: z.string().max(4000).optional().nullable(),
 });
 
 export const requestBooking = createServerFn({ method: "POST" })
@@ -24,8 +24,8 @@ export const requestBooking = createServerFn({ method: "POST" })
     if (data.preferredDate < today) {
       return { ok: false, message: "Kies een datum in de toekomst." };
     }
-    const { assertHuman } = await import("./turnstile.server");
-    await assertHuman(data.turnstileToken ?? null);
+    const { assertHuman } = await import("./altcha.server");
+    await assertHuman(data.altcha ?? null);
     const { createBookingRequest } = await import("./booking.server");
     return createBookingRequest({
       handle: data.handle,

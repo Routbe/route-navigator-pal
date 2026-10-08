@@ -2,7 +2,8 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { CalendarClock, Loader2, Mail, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { subscribeNewsletter } from "@/lib/newsletter.functions";
-import { Turnstile } from "@/components/Turnstile";
+import { Altcha } from "@/components/Altcha";
+import { takeProof } from "@/lib/altcha-client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 /** Interactieve kaarten op het publieke profiel (nieuwsbrief, agenda, promo). */
@@ -87,7 +88,6 @@ export function NewsletterBlock({
   style: CSSProperties;
 }) {
   const [email, setEmail] = useState("");
-  const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -97,7 +97,7 @@ export function NewsletterBlock({
     setBusy(true);
     try {
       const res = await subscribeNewsletter({
-        data: { handle, email: email.trim(), turnstileToken: token },
+        data: { handle, email: email.trim(), altcha: await takeProof() },
       });
       if (res.ok) {
         setDone(true);
@@ -142,7 +142,7 @@ export function NewsletterBlock({
           </button>
         </div>
       )}
-      <Turnstile onToken={setToken} />
+      <Altcha />
     </form>
   );
 }

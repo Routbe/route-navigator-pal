@@ -12,14 +12,14 @@ const schema = z.object({
   name: z.string().trim().max(120).optional().nullable(),
   email: z.string().trim().toLowerCase().email().max(200),
   message: z.string().trim().max(1000).optional().nullable(),
-  turnstileToken: z.string().max(4000).optional().nullable(),
+  altcha: z.string().max(4000).optional().nullable(),
 });
 
 export const submitLeadCapture = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => schema.parse(input))
   .handler(async ({ data }) => {
-    const { assertHuman } = await import("./turnstile.server");
-    await assertHuman(data.turnstileToken ?? null);
+    const { assertHuman } = await import("./altcha.server");
+    await assertHuman(data.altcha ?? null);
     const { captureLead } = await import("./lead-capture.server");
     return captureLead({
       handle: data.handle,

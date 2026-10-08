@@ -2,7 +2,8 @@ import { useState, type CSSProperties } from "react";
 import { CalendarClock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Turnstile } from "@/components/Turnstile";
+import { Altcha } from "@/components/Altcha";
+import { takeProof } from "@/lib/altcha-client";
 import { requestBooking } from "@/lib/booking.functions";
 import {
   BOOKING_MESSAGE_MAX,
@@ -30,7 +31,6 @@ export function BookingCard({
   const [date, setDate] = useState("");
   const [time, setTime] = useState<string>(BOOKING_TIME_SLOTS[0]);
   const [message, setMessage] = useState("");
-  const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -54,7 +54,7 @@ export function BookingCard({
           preferredDate: date,
           preferredTime: time,
           guestMessage: message.trim() || null,
-          turnstileToken: token,
+          altcha: await takeProof(),
         },
       });
       if (res.ok) {
@@ -195,7 +195,7 @@ export function BookingCard({
                 </p>
               </div>
 
-              <Turnstile onToken={setToken} />
+              <Altcha />
 
               <button
                 type="submit"

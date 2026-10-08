@@ -10,14 +10,14 @@ const schema = z.object({
     .max(40)
     .transform((v) => v.replace(/^@+/, "").toLowerCase()),
   email: z.string().trim().toLowerCase().email().max(200),
-  turnstileToken: z.string().max(4000).optional().nullable(),
+  altcha: z.string().max(4000).optional().nullable(),
 });
 
 export const subscribeNewsletter = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => schema.parse(input))
   .handler(async ({ data }) => {
-    const { assertHuman } = await import("./turnstile.server");
-    await assertHuman(data.turnstileToken ?? null);
+    const { assertHuman } = await import("./altcha.server");
+    await assertHuman(data.altcha ?? null);
     const { subscribeToNewsletter } = await import("./newsletter.server");
     return subscribeToNewsletter({ handle: data.handle, email: data.email });
   });
