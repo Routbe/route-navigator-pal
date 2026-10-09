@@ -19,7 +19,7 @@
   ];
 
   function isValidOrigin(origin) {
-    if (origin.includes("localhost")) return true;
+    if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return true;
     return VALID_ORIGINS.some(function (pattern) {
       return pattern.test(origin);
     });

@@ -39,12 +39,10 @@ export type TourDraft = {
 export const LAST_TOUR_STEP = 7;
 
 export function newTourToken(): string {
-  try {
-    if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  } catch {
-    /* val terug op de simpele variant */
-  }
-  return `t_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+  // Altijd cryptografisch willekeurig; nooit Math.random (raadbaar).
+  if ("randomUUID" in crypto) return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  return `t_${Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("")}`;
 }
 
 export const EMPTY_TOUR_DRAFT: TourDraft = {
