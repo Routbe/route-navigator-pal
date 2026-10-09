@@ -1,3 +1,4 @@
+import { safeOrTerm } from "@/lib/db/search-term";
 /**
  * Server-only helpers for the admin operations console (short links, badges
  * and QR scan counters). Every export assumes the caller was already proven
@@ -30,7 +31,7 @@ export async function fetchShortLinks(search: string, limit: number): Promise<Ad
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  const term = search.trim();
+  const term = safeOrTerm(search);
   if (term)
     query = query.or(`slug.ilike.%${term}%,label.ilike.%${term}%,target_url.ilike.%${term}%`);
 
