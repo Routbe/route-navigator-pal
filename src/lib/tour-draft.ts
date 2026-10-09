@@ -40,7 +40,7 @@ export const LAST_TOUR_STEP = 7;
 
 export function newTourToken(): string {
   // Altijd cryptografisch willekeurig; nooit Math.random (raadbaar).
-  if ("randomUUID" in crypto) return crypto.randomUUID();
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
   const b = crypto.getRandomValues(new Uint8Array(16));
   return `t_${Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("")}`;
 }

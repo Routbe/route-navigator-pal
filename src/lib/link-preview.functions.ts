@@ -156,7 +156,7 @@ export const fetchLinkPreview = createServerFn({ method: "POST" })
       };
     } catch (err) {
       console.error("[link-preview] ophalen mislukt", {
-        host,
+        host: target.hostname.toLowerCase(),
         error: err instanceof Error ? err.message : String(err),
       });
       return { ok: false as const, reason: "unreachable" as const };
