@@ -1,12 +1,11 @@
-import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { DecorGrid } from "@/components/studio/DecorGrid";
 import { AvatarFrameWrapper } from "@/components/profile/AvatarFrameWrapper";
 import {
   AVATAR_DECORATION_DEFS,
   DECORATION_CATEGORIES,
   PRESENCE_DEFS,
   type AvatarDecoration,
-  type DecorationCategory,
   type PresenceStatus,
 } from "@/lib/avatar-decorations";
 import type { AvatarFrame, FrameTheme } from "@/lib/avatar-frames";
@@ -32,60 +31,25 @@ export function AvatarDecorationPicker({
   frame: AvatarFrame;
   theme: FrameTheme;
 }) {
-  const [filter, setFilter] = useState<"all" | DecorationCategory>("all");
-  const items = AVATAR_DECORATION_DEFS.filter((d) => filter === "all" || d.category === filter);
-
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5">
-        {DECORATION_CATEGORIES.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => setFilter(c.id)}
-            className={cn(
-              "h-8 rounded-full border px-3 text-[11px] font-medium transition-colors",
-              filter === c.id ? "border-primary/50 bg-primary/10" : "border-border",
+      <DecorGrid
+        items={AVATAR_DECORATION_DEFS}
+        categories={DECORATION_CATEGORIES}
+        popular={["cat_ears", "angel_halo", "headphones", "star_orbit", "sakura_branch"]}
+        value={value}
+        onChange={(id) => onChange(id as AvatarDecoration)}
+        favKey="rout:fav-decor"
+        renderPreview={(id) => (
+          <AvatarFrameWrapper frame={frame} theme={theme} decoration={id as AvatarDecoration}>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" className="h-10 w-10 rounded-full object-cover" aria-hidden />
+            ) : (
+              <span className="block h-10 w-10 rounded-full" style={{ background: theme.card }} aria-hidden />
             )}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-3 gap-2 pt-3 sm:grid-cols-4 lg:grid-cols-6">
-        {items.map((d) => (
-          <button
-            key={d.id}
-            type="button"
-            onClick={() => onChange(d.id)}
-            aria-pressed={value === d.id}
-            title={d.label}
-            className={cn(
-              "flex flex-col items-center gap-1.5 rounded-xl border px-2 pb-2 pt-6 transition-all hover:-translate-y-0.5",
-              value === d.id ? "border-primary ring-1 ring-primary" : "border-border",
-            )}
-          >
-            <AvatarFrameWrapper frame={frame} theme={theme} decoration={d.id}>
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt=""
-                  className="h-10 w-10 rounded-full object-cover"
-                  aria-hidden
-                />
-              ) : (
-                <span
-                  className="block h-10 w-10 rounded-full"
-                  style={{ background: theme.card }}
-                  aria-hidden
-                />
-              )}
-            </AvatarFrameWrapper>
-            <span className="line-clamp-1 text-[10px] text-muted-foreground">{d.label}</span>
-          </button>
-        ))}
-      </div>
+          </AvatarFrameWrapper>
+        )}
+      />
 
       <div className="space-y-2 border-t border-border pt-4">
         <p className="input-label">Statusbolletje</p>
