@@ -1,3 +1,4 @@
+import { safeOrTerm } from "@/lib/db/search-term";
 import type { UserSegment } from "./admin-segments";
 /**
  * Server-only moderation, short-handle allocation, pagination and alias
@@ -192,8 +193,10 @@ export async function listUsersPage(opts: {
       else end.setUTCFullYear(end.getUTCFullYear() + 1);
       return q.gte("created_at", start.toISOString()).lt("created_at", end.toISOString());
     }
+    const t = safeOrTerm(term);
+    if (!t) return q;
     return q.or(
-      `username.ilike.%${term}%,display_name.ilike.%${term}%,subdomain_alias.ilike.%${term}%`,
+      `username.ilike.%${t}%,display_name.ilike.%${t}%,subdomain_alias.ilike.%${t}%`,
     );
   };
 
@@ -1372,7 +1375,7 @@ export async function fetchVipAuditLog(filters: VipAuditFilters = {}): Promise<V
     q = q.lte("created_at", to.toISOString());
   }
 
-  const handle = filters.handle?.trim().replace(/^@/, "").toLowerCase();
+  const handle = safeOrTerm(filters.handle?.trim().replace(/^@/, "").toLowerCase() ?? "");
   if (handle) q = q.or(`target_label.ilike.%${handle}%,notes.ilike.%${handle}%`);
 
   const { data } = await q;

@@ -1,3 +1,4 @@
+import { safeOrTerm } from "@/lib/db/search-term";
 /**
  * Server-only reads for the admin webhook monitor and referral analytics.
  * Service-role access: the monitor table carries raw Stripe payloads and is
@@ -33,7 +34,7 @@ export async function fetchWebhookEvents(opts: {
 
   if (opts.status && opts.status !== "all") query = query.eq("status" as "id", opts.status);
   if (opts.search) {
-    const term = opts.search.trim();
+    const term = safeOrTerm(opts.search);
     if (term) query = query.or(`id.ilike.%${term}%,kind.ilike.%${term}%`);
   }
 

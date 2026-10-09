@@ -115,6 +115,12 @@ export const Route = createFileRoute("/api/claim-root")({
         const currentStatus = (current["root_subdomain_status"] as string | null) ?? "none";
         const currentTier = (current["subdomain_tier"] as string | null) ?? "free";
         const currentUsername = ((current["username"] as string | null) ?? "").toLowerCase();
+        if (currentTier !== "root_lifetime") {
+          return Response.json(
+            { error: "payment_required", message: "Rond eerst de betaling voor het root-subdomein af." },
+            { status: 402 },
+          );
+        }
         if (currentStatus === "pending_dns" || currentStatus === "active") {
           return Response.json(
             {

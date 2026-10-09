@@ -23,21 +23,13 @@ export const fetchLinkPreview = createServerFn({ method: "POST" })
     if (target.protocol !== "https:" && target.protocol !== "http:") {
       return { ok: false as const, reason: "invalid_url" as const };
     }
-    // Geen interne adressen ophalen (SSRF-bescherming).
-    const host = target.hostname.toLowerCase();
-    if (
-      host === "localhost" ||
-      host.endsWith(".local") ||
-      host.endsWith(".internal") ||
-      /^(?:127\.|10\.|192\.168\.|169\.254\.|172\.(?:1[6-9]|2\d|3[01])\.|\[?::1)/.test(host)
-    ) {
+    const { assertPublicHost, safePublicFetch } = await import("./safe-fetch.server");
+    if (!(await assertPublicHost(target.hostname))) {
       return { ok: false as const, reason: "blocked_host" as const };
     }
 
     try {
-      const res = await fetch(target.toString(), {
-        method: "GET",
-        redirect: "follow",
+      const res = await safePublicFetch(target, {
         headers: {
           // Browserachtige headers: IMDb, Goodreads en Spotify weigeren kale bots.
           "user-agent":
@@ -45,8 +37,8 @@ export const fetchLinkPreview = createServerFn({ method: "POST" })
           accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           "accept-language": "nl,en;q=0.8",
         },
-        signal: AbortSignal.timeout(8000),
       });
+      if (!res) return { ok: false as const, reason: "blocked_host" as const };
       if (!res.ok) return { ok: false as const, reason: "unreachable" as const };
       const html = (await res.text()).slice(0, 600_000);
 
@@ -164,7 +156,7 @@ export const fetchLinkPreview = createServerFn({ method: "POST" })
       };
     } catch (err) {
       console.error("[link-preview] ophalen mislukt", {
-        host,
+        host: target.hostname.toLowerCase(),
         error: err instanceof Error ? err.message : String(err),
       });
       return { ok: false as const, reason: "unreachable" as const };

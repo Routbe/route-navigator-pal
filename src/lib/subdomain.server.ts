@@ -276,7 +276,7 @@ export async function claimRootSubdomainFor(userId: string): Promise<{
   status: "pending_dns" | "active";
 }> {
   const rows = (await sql`
-    select username, subdomain_alias, email, full_name, root_subdomain_status
+    select username, subdomain_alias, email, full_name, root_subdomain_status, subdomain_tier
       from public.profiles
      where id = ${userId}
      limit 1
@@ -294,11 +294,15 @@ export async function claimRootSubdomainFor(userId: string): Promise<{
   const status = (row["root_subdomain_status"] as string | null) ?? "none";
   const subdomain = `${handle}.rout.be`;
   if (status === "active") return { subdomain, status: "active" };
+  // Betaalde add-on: alleen toegestaan als de levenslange tier al door een
+  // betaling of een beheerder is toegekend. Nooit op verzoek van de gebruiker.
+  if ((row["subdomain_tier"] as string | null) !== "root_lifetime") {
+    throw new Error("payment_required");
+  }
 
   await sql`
     update public.profiles
-       set subdomain_tier = 'root_lifetime',
-           root_subdomain_status = 'pending_dns',
+       set root_subdomain_status = 'pending_dns',
            subdomain_enabled = true,
            updated_at = now()
      where id = ${userId}

@@ -1,3 +1,4 @@
+import { safeOrTerm } from "@/lib/db/search-term";
 /**
  * Server-only reader for the admin contact-form overview. Every export assumes
  * the caller was already proven to hold the `admin` role (checked in
@@ -40,8 +41,9 @@ export async function fetchContactSubmissions(q: ContactQuery): Promise<ContactS
   if (q.from) query = query.gte("created_at", q.from);
   if (q.to) query = query.lte("created_at", q.to);
   if (q.search) {
-    const term = `%${q.search.replace(/[%_]/g, "")}%`;
-    query = query.or(`name.ilike.${term},email.ilike.${term},subject.ilike.${term}`);
+    const clean = safeOrTerm(q.search);
+    const term = `%${clean}%`;
+    if (clean) query = query.or(`name.ilike.${term},email.ilike.${term},subject.ilike.${term}`);
   }
 
   const { data, error } = await query;
