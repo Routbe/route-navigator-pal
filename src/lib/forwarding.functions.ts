@@ -27,7 +27,10 @@ export const requestForwardingChange = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { enforceRateLimit, RateLimitError } = await import("./rate-limit.server");
     try {
-      enforceRateLimit(`forwarding:${context.userId}`, 5, 10 * 60 * 1000);
+      enforceRateLimit(`forwarding:${context.userId}`, 3, 10 * 60 * 1000);
+      // Max. 5 bevestigingsmails per dag per lid en max. 2 per ontvanger.
+      enforceRateLimit(`forwarding-day:${context.userId}`, 5, 24 * 60 * 60 * 1000);
+      enforceRateLimit(`forwarding-to:${data.email.toLowerCase()}`, 2, 24 * 60 * 60 * 1000);
     } catch (error) {
       if (error instanceof RateLimitError) {
         return { ok: false as const, reason: "rate_limited" as const };
