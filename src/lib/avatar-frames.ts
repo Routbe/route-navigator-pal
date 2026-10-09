@@ -30,9 +30,18 @@ export type AvatarFrame =
   | "chrome_steel"
   | "pixel_retro"
   | "hologram"
-  | "vampire_goth";
+  | "vampire_goth"
+  | `gen_${string}`;
 
-export type AvatarFrameCategory = "minimal" | "cyber" | "royal" | "nature";
+export type AvatarFrameCategory =
+  | "minimal"
+  | "cyber"
+  | "royal"
+  | "nature"
+  | "neon"
+  | "dark"
+  | "kawaii"
+  | "abstract";
 
 /** Overlay-tekening bovenop de rand (klein, decoratief). */
 export type AvatarFrameOverlay =
@@ -45,9 +54,95 @@ export type AvatarFrameDef = {
   overlay?: AvatarFrameOverlay;
   /** Animatieklasse uit styles.css (rout-frame-*). */
   animation?: string;
+  /** Extra zoekwoorden (NL + EN). */
+  keywords?: string;
 };
 
-export const AVATAR_FRAME_DEFS: AvatarFrameDef[] = [
+/* ------------------------------------------------ gegenereerde kaders (80) */
+
+type GenStyle = "ring" | "duo" | "conic" | "glow" | "dash" | "double" | "thick" | "aura";
+
+const GEN_STYLES: { id: GenStyle; label: string; anim?: string }[] = [
+  { id: "ring", label: "ring" },
+  { id: "duo", label: "duo" },
+  { id: "conic", label: "draai", anim: "rout-frame-spin" },
+  { id: "glow", label: "gloed", anim: "rout-frame-pulse" },
+  { id: "dash", label: "stippel" },
+  { id: "double", label: "dubbel" },
+  { id: "thick", label: "breed" },
+  { id: "aura", label: "aura", anim: "rout-frame-shimmer" },
+];
+
+const GEN_PALETTES: {
+  id: string;
+  label: string;
+  category: AvatarFrameCategory;
+  keywords: string;
+  c: [string, string, string];
+}[] = [
+  { id: "synthwave", label: "Synthwave", category: "neon", keywords: "neon retro 80s pink", c: ["#f0abfc", "#a855f7", "#22d3ee"] },
+  { id: "acid", label: "Acid", category: "neon", keywords: "neon lime green rave", c: ["#bef264", "#22c55e", "#facc15"] },
+  { id: "tokyo", label: "Tokyo nacht", category: "cyber", keywords: "cyber sci-fi city night", c: ["#38bdf8", "#6366f1", "#f43f5e"] },
+  { id: "circuit", label: "Circuit", category: "cyber", keywords: "cyber tech sci-fi teal", c: ["#2dd4bf", "#0f766e", "#a7f3d0"] },
+  { id: "imperial", label: "Imperiaal", category: "royal", keywords: "royal purple gold crown", c: ["#fde68a", "#7c3aed", "#facc15"] },
+  { id: "ruby", label: "Robijn", category: "royal", keywords: "royal red jewel gem", c: ["#fecdd3", "#be123c", "#fb7185"] },
+  { id: "sakura", label: "Sakura", category: "kawaii", keywords: "kawaii anime pink cute", c: ["#fbcfe8", "#f9a8d4", "#fdf2f8"] },
+  { id: "candy", label: "Snoep", category: "kawaii", keywords: "kawaii pastel cute sweet", c: ["#a5f3fc", "#f9a8d4", "#fde68a"] },
+  { id: "forest", label: "Woud", category: "nature", keywords: "nature green moss leaf", c: ["#86efac", "#166534", "#d9f99d"] },
+  { id: "ocean", label: "Oceaan", category: "nature", keywords: "nature sea blue water", c: ["#67e8f9", "#0369a1", "#e0f2fe"] },
+  { id: "obsidian", label: "Obsidiaan", category: "dark", keywords: "dark fantasy black goth", c: ["#52525b", "#09090b", "#a1a1aa"] },
+  { id: "necro", label: "Necro", category: "dark", keywords: "dark fantasy green poison", c: ["#4ade80", "#14532d", "#18181b"] },
+  { id: "mono", label: "Mono", category: "minimal", keywords: "minimal black white clean", c: ["#fafafa", "#27272a", "#a1a1aa"] },
+  { id: "sand", label: "Zand", category: "minimal", keywords: "minimal beige warm calm", c: ["#e7e5e4", "#a8a29e", "#f5f5f4"] },
+  { id: "prism", label: "Prisma", category: "abstract", keywords: "abstract rainbow colour", c: ["#f87171", "#60a5fa", "#facc15"] },
+  { id: "lava", label: "Lava", category: "abstract", keywords: "abstract orange fire red", c: ["#fdba74", "#dc2626", "#fde047"] },
+];
+
+const GEN_DEFS: AvatarFrameDef[] = GEN_PALETTES.flatMap((p) =>
+  GEN_STYLES.map((st) => ({
+    id: `gen_${p.id}_${st.id}` as AvatarFrame,
+    label: `${p.label} ${st.label}`,
+    category: p.category,
+    animation: st.anim,
+    keywords: `${p.keywords} ${st.label}`,
+  })),
+);
+
+function genFrameStyle(frame: string, theme: FrameTheme): Record<string, string | number> | null {
+  const m = /^gen_([a-z]+)_([a-z]+)$/.exec(frame);
+  if (!m) return null;
+  const pal = GEN_PALETTES.find((p) => p.id === m[1]);
+  if (!pal) return null;
+  const [a, b, c] = pal.c;
+  const base = { borderRadius: 999 };
+  switch (m[2] as GenStyle) {
+    case "ring":
+      return { ...base, padding: 3, background: a };
+    case "duo":
+      return { ...base, padding: 4, background: `linear-gradient(135deg,${a},${b})` };
+    case "conic":
+      return { ...base, padding: 4, background: `conic-gradient(${a},${b},${c},${a})` };
+    case "glow":
+      return { ...base, padding: 3, background: a, boxShadow: `0 0 22px -2px ${b}` };
+    case "dash":
+      return { ...base, padding: 3, border: `3px dashed ${a}` };
+    case "double":
+      return { ...base, padding: 6, border: `2px solid ${a}`, boxShadow: `inset 0 0 0 3px ${theme.bg}, inset 0 0 0 5px ${b}` };
+    case "thick":
+      return { ...base, padding: 7, background: `linear-gradient(180deg,${a},${b})` };
+    case "aura":
+      return { ...base, padding: 4, background: `linear-gradient(120deg,${a},${c},${b})`, boxShadow: `0 0 0 4px ${a}33, 0 0 30px -6px ${c}` };
+    default:
+      return null;
+  }
+}
+
+function genAccent(frame: string): string | null {
+  const m = /^gen_([a-z]+)_/.exec(frame);
+  return m ? (GEN_PALETTES.find((p) => p.id === m[1])?.c[0] ?? null) : null;
+}
+
+const BASE_FRAME_DEFS: AvatarFrameDef[] = [
   { id: "none", label: "Standaard", category: "minimal" },
   { id: "minimal_double", label: "Dubbele lijn", category: "minimal" },
   { id: "glass_crystal", label: "Gematteerd glas", category: "minimal" },
@@ -88,14 +183,30 @@ export const AVATAR_FRAME_DEFS: AvatarFrameDef[] = [
   { id: "vampire_goth", label: "Gothic kant", category: "nature", overlay: "lace" },
 ];
 
+export const AVATAR_FRAME_DEFS: AvatarFrameDef[] = [...BASE_FRAME_DEFS, ...GEN_DEFS];
+
 export const AVATAR_FRAME_IDS = AVATAR_FRAME_DEFS.map((f) => f.id);
+
+/** Populaire keuzes, bovenaan getoond. */
+export const POPULAR_FRAMES: AvatarFrame[] = [
+  "laurel_gold",
+  "cyber_neon",
+  "hologram",
+  "gen_synthwave_glow",
+  "gen_sakura_duo",
+  "royal_crown",
+];
 
 export const AVATAR_FRAME_CATEGORIES: { id: "all" | AvatarFrameCategory; label: string }[] = [
   { id: "all", label: "Alles" },
   { id: "minimal", label: "Minimal" },
   { id: "cyber", label: "Gaming / Cyber" },
   { id: "royal", label: "Royal" },
-  { id: "nature", label: "Natuur / Dark" },
+  { id: "nature", label: "Natuur" },
+  { id: "neon", label: "Neon" },
+  { id: "dark", label: "Dark Fantasy" },
+  { id: "kawaii", label: "Kawaii" },
+  { id: "abstract", label: "Abstract" },
 ];
 
 export function avatarFrameLabel(id: AvatarFrame): string {
@@ -133,6 +244,8 @@ export function avatarFrameStyle(
   frame: AvatarFrame,
   theme: FrameTheme,
 ): Record<string, string | number> {
+  const gen = genFrameStyle(frame, theme);
+  if (gen) return gen;
   const accent = theme.accent ?? theme.border;
   const ring = (padding: number, extra: Record<string, string | number>) => ({
     padding,
@@ -309,7 +422,7 @@ export function avatarFrameFallbackStyle(
   theme: FrameTheme,
 ): Record<string, string | number> {
   if (frame === "none") return avatarFrameStyle(frame, theme);
-  const color = FALLBACK_ACCENT[frame] ?? theme.accent ?? theme.border;
+  const color = genAccent(frame) ?? (FALLBACK_ACCENT as Record<string, string>)[frame] ?? theme.accent ?? theme.border;
   return {
     padding: 4,
     borderRadius: 999,
